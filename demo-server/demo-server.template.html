@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PulsePoint Demo Server</title>
+<style>
+  :root {
+    --teal: #00897b;
+    --teal-dark: #004d40;
+    --teal-light: #e0f2f1;
+    --navy: #0d1b2a;
+    --ink: #14181a;
+    --slate: #546e7a;
+    --bg: #f4f7f6;
+    --card: #ffffff;
+    --amber: #ffb74d;
+    --coral: #ff8a65;
+    --sky: #4fc3f7;
+    --mint: #4db6ac;
+    --lilac: #9575cd;
+    --rose: #f06292;
+    --radius: 16px;
+    --shadow: 0 1px 3px rgba(13, 27, 42, 0.08), 0 4px 12px rgba(13, 27, 42, 0.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  .hero {
+    background: linear-gradient(120deg, var(--navy) 0%, #123348 55%, var(--teal-dark) 100%);
+    color: #fff;
+    padding: 40px 24px 36px;
+  }
+  .hero h1 {
+    margin: 0;
+    font-size: 30px;
+    letter-spacing: 0.3px;
+  }
+  .hero p {
+    margin: 8px 0 0;
+    color: rgba(255, 255, 255, 0.78);
+    max-width: 720px;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(77, 182, 172, 0.22);
+    color: #a7ece3;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  .live-note {
+    display: none;
+    background: var(--teal-light);
+    border: 1px solid rgba(0, 137, 123, 0.35);
+    color: var(--teal-dark);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+  }
+  .stat-card .label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--slate);
+  }
+  .stat-card .value {
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 4px;
+    color: var(--teal-dark);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 820px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    margin: 0 0 4px;
+    font-size: 17px;
+    color: var(--navy);
+  }
+  .card .hint {
+    margin: 0 0 14px;
+    font-size: 13px;
+    color: var(--slate);
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    align-items: end;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 90px;
+  }
+  .field label {
+    font-size: 12px;
+    color: var(--slate);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .field input,
+  .field select {
+    border: 1px solid #cfd8dc;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--ink);
+    width: 100%;
+  }
+  .field input:focus,
+  .field select:focus {
+    outline: 2px solid var(--teal);
+    border-color: transparent;
+  }
+
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  button.btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--teal);
+    color: #fff;
+    transition: transform 0.06s ease, box-shadow 0.12s ease;
+  }
+  button.btn:hover { box-shadow: 0 4px 10px rgba(0, 137, 123, 0.35); }
+  button.btn:active { transform: translateY(1px); }
+  button.btn.secondary {
+    background: #eef3f2;
+    color: var(--navy);
+  }
+  button.btn.secondary:hover { box-shadow: 0 2px 6px rgba(13, 27, 42, 0.15); }
+
+  .copy-feedback {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--teal);
+  }
+
+  pre.json {
+    background: #0d1b2a;
+    color: #c9e8e3;
+    border-radius: 12px;
+    padding: 14px;
+    overflow: auto;
+    max-height: 340px;
+    font-size: 12.5px;
+    font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+    margin: 12px 0 4px;
+  }
+
+  .swatches {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .swatch {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .ts-note {
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--slate);
+    background: #eef3f2;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  code {
+    background: rgba(13, 27, 42, 0.08);
+    padding: 1px 5px;
+    border-radius: 5px;
+    font-family: Consolas, monospace;
+    font-size: 12.5px;
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>PulsePoint Demo Server</h1>
+  <p>
+    A trial server that feeds your Android client app the health metrics and assigned workouts.
+    The page is a live data console: tune the payload below, then watch the app pick it up
+    through the <code>/api</code> endpoints.
+  </p>
+  <span class="badge">CSS + TypeScript</span>
+</header>
+
+<div class="wrap">
+  <div id="live-note" class="live-note">
+    Connected to the running Node server. The app reads this same payload from <code>/api/metrics</code> and <code>/api/workouts</code>.
+  </div>
+
+  <section class="stats">
+    <div class="stat-card"><div class="label">Data points</div><div class="value" id="stat-data-points">-</div></div>
+    <div class="stat-card"><div class="label">Date range</div><div class="value" id="stat-range" style="font-size:15px;">-</div></div>
+    <div class="stat-card"><div class="label">Workouts</div><div class="value" id="stat-workouts">-</div></div>
+    <div class="stat-card"><div class="label">Exercises</div><div class="value" id="stat-exercises">-</div></div>
+    <div class="stat-card"><div class="label">Mode</div><div class="value" id="stat-mode" style="font-size:15px;">-</div></div>
+  </section>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Latest snapshot editor</h2>
+        <p class="hint">Adjust the most recent metrics; BMI, muscle weight and BMR are recomputed on the "server" side, exactly as the real host would.</p>
+        <div class="controls">
+          <div class="field">
+            <label for="input-weight">Weight (kg)</label>
+            <input id="input-weight" type="number" step="0.1" />
+          </div>
+          <div class="field">
+            <label for="input-height">Height (cm)</label>
+            <input id="input-height" type="number" step="0.5" />
+          </div>
+          <div class="field">
+            <label for="input-fat">Body fat (%)</label>
+            <input id="input-fat" type="number" step="0.1" />
+          </div>
+          <div class="field">
+            <label for="input-muscle">Muscle (%)</label>
+            <input id="input-muscle" type="number" step="0.1" />
+          </div>
+          <div class="field">
+            <label for="input-age">Age</label>
+            <input id="input-age" type="number" step="1" />
+          </div>
+          <div class="field">
+            <label for="input-gender">Gender</label>
+            <select id="input-gender">
+              <option value="male">male</option>
+              <option value="female">female</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="input-bmr">BMR (kcal)</label>
+            <input id="input-bmr" type="number" step="1" />
+          </div>
+          <button id="btn-apply" class="btn">Apply to latest</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>History generator</h2>
+        <p class="hint">Regenerate a realistic daily history so the app charts show a clear trend.</p>
+        <div class="controls">
+          <div class="field">
+            <label for="input-days">Days</label>
+            <input id="input-days" type="number" min="7" max="365" step="1" value="120" />
+          </div>
+          <button id="btn-regenerate" class="btn secondary">Regenerate history</button>
+          <button id="btn-export" class="btn secondary">Download demo-data.json</button>
+        </div>
+        <div class="swatches">
+          <div class="swatch" style="background:#00897b;"></div>
+          <div class="swatch" style="background:#4db6ac;"></div>
+          <div class="swatch" style="background:#4fc3f7;"></div>
+          <div class="swatch" style="background:#ffb74d;"></div>
+          <div class="swatch" style="background:#ff8a65;"></div>
+          <div class="swatch" style="background:#9575cd;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>TypeScript source</h2>
+        <p class="hint">This page's logic is written in TypeScript. The readable source is embedded below and compiled into the bundle that runs here.</p>
+        <details>
+          <summary>Show TypeScript source</summary>
+          <script type="text/typescript">
+/*__TS_SOURCE__*/
+          </script>
+        </details>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="row">
+          <h2 style="margin:0;">Payload: /api/metrics</h2>
+          <button id="btn-copy-metrics" class="btn secondary">Copy JSON</button>
+          <span id="copy-feedback-metrics" class="copy-feedback"></span>
+        </div>
+        <p class="hint">Body weight, height, muscle mass, fat %, BMI, muscle weight, age, gender and BMR per day.</p>
+        <pre id="preview-metrics" class="json">Loading...</pre>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <h2 style="margin:0;">Payload: /api/workouts</h2>
+          <button id="btn-copy-workouts" class="btn secondary">Copy JSON</button>
+          <span id="copy-feedback-workouts" class="copy-feedback"></span>
+        </div>
+        <p class="hint">The assigned workout programs, exercises and set prescriptions.</p>
+        <pre id="preview-workouts" class="json">Loading...</pre>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <h2 style="margin:0;">Full bundle</h2>
+          <button id="btn-copy-full" class="btn secondary">Copy JSON</button>
+          <span id="copy-feedback-full" class="copy-feedback"></span>
+        </div>
+        <pre id="preview-full" class="json">Loading...</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*__CONSOLE_BUNDLE__*/
+</script>
+</body>
+</html>

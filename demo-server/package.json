@@ -1,0 +1,14 @@
+{
+  "name": "pulsepoint-demo-server",
+  "version": "1.0.0",
+  "description": "Demo/trial server for the PulsePoint Android app. Serves the demo-server.html data console and the /api endpoints the client app consumes.",
+  "type": "commonjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node dist/server.js",
+    "serve": "node scripts/build.mjs && node dist/server.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0"
+  }
+}
