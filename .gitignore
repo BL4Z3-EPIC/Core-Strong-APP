@@ -1,0 +1,25 @@
+# Gradle / Android
+.gradle/
+build/
+captures/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+.kotlin/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.DS_Store
+
+# Node / demo server
+node_modules/
+demo-server/dist/
+demo-server/demo-data.json
+*.tsbuildinfo
+
+# Misc
+logs/
+*.log
