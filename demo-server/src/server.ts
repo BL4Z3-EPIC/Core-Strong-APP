@@ -116,6 +116,7 @@ const server = http.createServer((request, response) => {
         if (Array.isArray(payload.workouts)) {
           data.workouts = payload.workouts;
         }
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
         sendJson(response, 200, { status: "updated", dataPoints: data.metrics.length });
       } catch (error) {
         sendJson(response, 400, { status: "error", message: (error as Error).message });

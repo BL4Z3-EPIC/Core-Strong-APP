@@ -116,6 +116,7 @@ function applyLatestEdits(): void {
       : Math.round(10 * weightKg + 6.25 * heightCm - 5 * age - 161);
 
   render();
+  void pushToServer("push-feedback-editor");
 }
 
 function regenerate(): void {
@@ -126,6 +127,24 @@ function regenerate(): void {
   };
   state.mode = "generated";
   render();
+  void pushToServer("push-feedback-generator");
+}
+
+async function pushToServer(feedbackId: string): Promise<void> {
+  const feedback = byId<HTMLElement>(feedbackId);
+  try {
+    const response = await fetch("/api/data", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: formatJson(state.data),
+    });
+    feedback.textContent = response.ok ? "Pushed to server!" : "Push failed";
+  } catch (_error) {
+    feedback.textContent = "Push failed (server offline)";
+  }
+  window.setTimeout(() => {
+    feedback.textContent = "";
+  }, 2000);
 }
 
 function exportFull(): void {
