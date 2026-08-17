@@ -6,15 +6,16 @@ import com.pulsepoint.app.core.local.entity.ExerciseSetEntity
 import com.pulsepoint.app.core.local.entity.WorkoutEntity
 import com.pulsepoint.app.core.local.entity.WorkoutSessionEntity
 import com.pulsepoint.app.core.local.relation.WorkoutWithExercises
-import com.pulsepoint.app.core.network.ApiService
+import com.pulsepoint.app.core.network.NetworkClient
 import com.pulsepoint.app.core.network.dto.ExerciseDto
 import com.pulsepoint.app.core.network.dto.ExerciseSetDto
 import com.pulsepoint.app.core.network.dto.WorkoutDto
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class WorkoutRepository(
-    private val api: ApiService,
-    private val workoutDao: WorkoutDao
+    private val workoutDao: WorkoutDao,
+    private val userPreferences: UserPreferences
 ) {
 
     val workouts: Flow<List<WorkoutWithExercises>> = workoutDao.observeActiveWorkouts()
@@ -27,7 +28,9 @@ class WorkoutRepository(
     suspend fun isDatabaseEmpty(): Boolean = workoutDao.count() == 0
 
     suspend fun refresh() {
-        val dto = api.getWorkouts()
+        val url = userPreferences.serverBaseUrl.first()
+        NetworkClient.configure(url)
+        val dto = NetworkClient.apiService.getWorkouts()
         val workouts = dto.map { it.toEntity() }
         val exercises = dto.flatMap { workout -> workout.exercises.map { it.toEntity(workout.id) } }
         val sets = dto.flatMap { workout ->

@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as http from "http";
+import * as os from "os";
 import * as path from "path";
 import { generateMetricHistory, generateWorkouts } from "./generator";
 import type { DemoData } from "./types";
@@ -128,12 +129,28 @@ const server = http.createServer((request, response) => {
   sendJson(response, 404, { status: "error", message: `No endpoint at ${pathname}` });
 });
 
-server.listen(PORT, () => {
-  const addresses = ["http://localhost", "http://127.0.0.1", "http://10.0.2.2"];
-  console.log(`PulsePoint Demo Server listening on port ${PORT}`);
-  console.log(`  HTML console : ${addresses[0]}:${PORT}/`);
-  console.log(`  Metrics API  : ${addresses[0]}:${PORT}/api/metrics`);
-  console.log(`  Workouts API : ${addresses[0]}:${PORT}/api/workouts`);
-  console.log(`  Health check : ${addresses[0]}:${PORT}/api/health`);
+function lanAddresses(): string[] {
+  const interfaces = os.networkInterfaces();
+  const addresses: string[] = [];
+  for (const name of Object.keys(interfaces)) {
+    for (const entry of interfaces[name] ?? []) {
+      if (entry.family === "IPv4" && !entry.internal) {
+        addresses.push(entry.address);
+      }
+    }
+  }
+  return addresses;
+}
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`PulsePoint Demo Server listening on port ${PORT} (all interfaces)`);
+  console.log(`  HTML console : http://localhost:${PORT}/`);
+  console.log(`  Metrics API  : http://localhost:${PORT}/api/metrics`);
+  console.log(`  Workouts API : http://localhost:${PORT}/api/workouts`);
+  console.log(`  Health check : http://localhost:${PORT}/api/health`);
+  for (const ip of lanAddresses()) {
+    console.log(`  LAN access   : http://${ip}:${PORT}/ (use this in the app for a physical device)`);
+  }
+  console.log("  Android emulator uses: http://10.0.2.2:8765/");
   console.log("Data source: demo-data.json (regenerated automatically if missing).");
 });

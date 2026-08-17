@@ -2,11 +2,12 @@ package com.pulsepoint.app.core.data
 
 import com.pulsepoint.app.core.local.dao.HealthSnapshotDao
 import com.pulsepoint.app.core.local.entity.HealthSnapshotEntity
-import com.pulsepoint.app.core.network.ApiService
+import com.pulsepoint.app.core.network.NetworkClient
 import com.pulsepoint.app.core.network.dto.HealthSnapshotDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import java.io.IOException
 import java.time.LocalDate
 
@@ -17,7 +18,6 @@ sealed interface SyncResult {
 }
 
 class HealthRepository(
-    private val api: ApiService,
     private val snapshotDao: HealthSnapshotDao,
     private val userPreferences: UserPreferences
 ) {
@@ -31,7 +31,9 @@ class HealthRepository(
 
     suspend fun refresh(): SyncResult {
         return try {
-            val dto = api.getMetrics()
+            val url = userPreferences.serverBaseUrl.first()
+            NetworkClient.configure(url)
+            val dto = NetworkClient.apiService.getMetrics()
             snapshotDao.insertAll(dto.map { it.toEntity() })
             val latest = dto.maxByOrNull { it.date }
             latest?.let {

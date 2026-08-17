@@ -7,9 +7,7 @@ import com.pulsepoint.app.core.data.WorkoutRepository
 import com.pulsepoint.app.core.local.AppDatabase
 import com.pulsepoint.app.core.local.dao.HealthSnapshotDao
 import com.pulsepoint.app.core.local.dao.WorkoutDao
-import com.pulsepoint.app.core.network.ApiService
 import com.pulsepoint.app.core.network.ConnectionMonitor
-import com.pulsepoint.app.core.network.NetworkClient
 import com.pulsepoint.app.core.sync.SyncScheduler
 
 class AppContainer(context: Context) {
@@ -24,13 +22,11 @@ class AppContainer(context: Context) {
     val userPreferences: UserPreferences = UserPreferences(appContext)
     val connectionMonitor: ConnectionMonitor = ConnectionMonitor(appContext)
 
-    private val apiService: ApiService = NetworkClient.apiService
-
     val healthRepository: HealthRepository =
-        HealthRepository(apiService, healthSnapshotDao, userPreferences)
+        HealthRepository(healthSnapshotDao, userPreferences)
 
     val workoutRepository: WorkoutRepository =
-        WorkoutRepository(apiService, workoutDao)
+        WorkoutRepository(workoutDao, userPreferences)
 
     private val syncScheduler = SyncScheduler(appContext, healthRepository, workoutRepository)
 

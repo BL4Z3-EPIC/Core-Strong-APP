@@ -17,12 +17,32 @@ object NetworkClient {
         })
         .build()
 
-    val apiService: ApiService by lazy {
+    @Volatile
+    private var baseUrl: String = BuildConfig.BASE_URL
+
+    @Volatile
+    private var serviceInstance: ApiService? = null
+
+    fun configure(baseUrl: String) {
+        val normalized = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+        synchronized(this) {
+            if (normalized != this.baseUrl) {
+                this.baseUrl = normalized
+                serviceInstance = buildService()
+            }
+        }
+    }
+
+    val apiService: ApiService
+        get() = serviceInstance ?: synchronized(this) {
+            serviceInstance ?: buildService().also { serviceInstance = it }
+        }
+
+    private fun buildService(): ApiService =
         Retrofit.Builder()
-            .baseUrl(BuildConfig.BASE_URL)
+            .baseUrl(baseUrl)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ApiService::class.java)
-    }
 }

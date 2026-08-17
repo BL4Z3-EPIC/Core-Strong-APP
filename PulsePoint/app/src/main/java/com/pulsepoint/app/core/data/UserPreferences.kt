@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.pulsepoint.app.BuildConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -26,9 +27,13 @@ class UserPreferences(private val context: Context) {
     private val genderKey = stringPreferencesKey("gender")
     private val ageKey = intPreferencesKey("age")
     private val bmrKey = stringPreferencesKey("bmr")
+    private val serverBaseUrlKey = stringPreferencesKey("server_base_url")
 
     val lastSyncEpochMillis: Flow<Long?> =
         context.dataStore.data.map { it[lastSyncKey] }
+
+    val serverBaseUrl: Flow<String> =
+        context.dataStore.data.map { it[serverBaseUrlKey] ?: BuildConfig.BASE_URL }
 
     val chartRangeDays: Flow<Int> =
         context.dataStore.data.map { it[chartRangeDaysKey] ?: DEFAULT_RANGE_DAYS }
@@ -48,6 +53,10 @@ class UserPreferences(private val context: Context) {
 
     suspend fun setChartRangeDays(days: Int) {
         context.dataStore.edit { it[chartRangeDaysKey] = days }
+    }
+
+    suspend fun setServerBaseUrl(url: String) {
+        context.dataStore.edit { it[serverBaseUrlKey] = url }
     }
 
     suspend fun updateProfile(gender: String, age: Int, bmr: Double) {

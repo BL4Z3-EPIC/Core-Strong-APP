@@ -23,6 +23,7 @@ data class VitalityUiState(
     val snapshots: List<HealthSnapshotEntity> = emptyList(),
     val latestSnapshot: HealthSnapshotEntity? = null,
     val selectedRangeDays: Int = UserPreferences.DEFAULT_RANGE_DAYS,
+    val serverUrl: String = "",
     val lastSyncMillis: Long? = null
 )
 
@@ -34,24 +35,40 @@ class VitalityViewModel(application: Application) : AndroidViewModel(application
     private val isRefreshing = MutableStateFlow(false)
     private val rangeDays = MutableStateFlow(UserPreferences.DEFAULT_RANGE_DAYS)
 
+    // Nested combine keeps the flow count at the 5-flow overload maximum:
+    // rangeDays + isRefreshing + serverUrl are bundled into one Triple.
     val state: StateFlow<VitalityUiState> = combine(
         repository.snapshots,
         container.connectionMonitor.isOnline,
         repository.lastSyncResult,
         container.userPreferences.lastSyncEpochMillis,
-        rangeDays,
-        isRefreshing
-    ) { snapshots, online, lastResult, lastSyncMillis, range, refreshing ->
+        combine(
+            rangeDays,
+            isRefreshing,
+            container.userPreferences.serverBaseUrl,
+            ::Triple
+        )
+    ) { snapshots, online, lastResult, lastSyncMillis, rangeRefreshUrl ->
+        val range = rangeRefreshUrl.first
+        val refreshing = rangeRefreshUrl.second
+        val serverUrl = rangeRefreshUrl.third
+
         val empty = snapshots.isEmpty()
+        val networkError = lastResult == SyncResult.NetworkUnavailable && empty
         VitalityUiState(
             isLoading = empty && lastResult == null,
             isRefreshing = refreshing,
             isOffline = !online,
-            hasError = lastResult is SyncResult.Failure,
-            errorMessage = (lastResult as? SyncResult.Failure)?.message,
+            hasError = lastResult is SyncResult.Failure || networkError,
+            errorMessage = when {
+                lastResult is SyncResult.Failure -> lastResult.message
+                networkError -> "Could not reach the server at $serverUrl"
+                else -> null
+            },
             snapshots = snapshots,
             latestSnapshot = snapshots.lastOrNull(),
             selectedRangeDays = range,
+            serverUrl = serverUrl,
             lastSyncMillis = lastSyncMillis
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VitalityUiState())
@@ -68,6 +85,17 @@ class VitalityViewModel(application: Application) : AndroidViewModel(application
         rangeDays.value = days
         viewModelScope.launch {
             container.userPreferences.setChartRangeDays(days)
+        }
+    }
+
+    fun setServerUrl(url: String) {
+        val trimmed = url.trim().removeSuffix("/")
+        if (trimmed.isEmpty()) {
+            return
+        }
+        viewModelScope.launch {
+            container.userPreferences.setServerBaseUrl("$trimmed/")
+            refresh()
         }
     }
 

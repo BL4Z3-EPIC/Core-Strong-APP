@@ -37,7 +37,8 @@ cd PulsePoint
 
 Notes:
 
-- `app/build.gradle.kts` points the API base URL at `http://10.0.2.2:8765/`, which is the host loopback as seen from the Android **emulator**. On a physical device, change `BuildConfig.BASE_URL` to your machine's LAN IP.
+- `app/build.gradle.kts` sets the default API base URL to `http://10.0.2.2:8765/`, which is the host loopback as seen from the Android **emulator**. On a physical device, tap the **gear icon** on the Vitality screen and enter `http://<your-PC-LAN-IP>:8765/` — the server prints its LAN address when it starts. The URL is saved and used from then on.
+- If the app can't reach the server it shows a clear error with the URL it tried; tap the refresh icon to retry.
 - If Gradle is not available locally, the project ships with the wrapper (`gradlew`) pinned to Gradle 8.2.1.
 
 ## 2. Demo server
