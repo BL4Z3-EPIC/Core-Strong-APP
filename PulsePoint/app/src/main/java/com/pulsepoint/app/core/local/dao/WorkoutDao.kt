@@ -51,4 +51,24 @@ abstract class WorkoutDao {
         insertExercises(exercises)
         insertSets(sets)
     }
+
+    @Query("DELETE FROM workout_sessions")
+    abstract suspend fun clearSessions()
+
+    @Query("DELETE FROM exercise_sets")
+    abstract suspend fun clearSets()
+
+    @Query("DELETE FROM exercises")
+    abstract suspend fun clearExercises()
+
+    @Query("DELETE FROM workouts")
+    abstract suspend fun clearWorkouts()
+
+    @Transaction
+    open suspend fun clearAll() {
+        clearSessions()
+        clearSets()
+        clearExercises()
+        clearWorkouts()
+    }
 }

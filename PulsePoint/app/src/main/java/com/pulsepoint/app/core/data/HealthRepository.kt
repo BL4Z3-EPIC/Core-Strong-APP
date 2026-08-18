@@ -29,6 +29,11 @@ class HealthRepository(
 
     suspend fun isDatabaseEmpty(): Boolean = snapshotDao.count() == 0
 
+    suspend fun clearAll() {
+        snapshotDao.clearAll()
+        userPreferences.clearLastSync()
+    }
+
     suspend fun refresh(): SyncResult {
         return try {
             val url = userPreferences.serverBaseUrl.first()

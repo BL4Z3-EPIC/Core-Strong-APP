@@ -9,6 +9,7 @@ const PORT = Number(process.env.PORT ?? 8765);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const HTML_FILE = path.join(ROOT_DIR, "demo-server.html");
 const DATA_FILE = path.join(ROOT_DIR, "demo-data.json");
+const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 function loadOrCreateData(): DemoData {
   if (fs.existsSync(DATA_FILE)) {
@@ -25,11 +26,46 @@ function loadOrCreateData(): DemoData {
     metrics: generateMetricHistory(),
     workouts: generateWorkouts(),
   };
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+  persistData(data);
   return data;
 }
 
-const data: DemoData = loadOrCreateData();
+let data: DemoData = loadOrCreateData();
+
+function persistData(next: DemoData): void {
+  const tmpFile = `${DATA_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmpFile, JSON.stringify(next, null, 2), "utf8");
+  fs.renameSync(tmpFile, DATA_FILE);
+}
+
+function isValidMetric(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const m = value as Record<string, unknown>;
+  return (
+    typeof m.date === "string" &&
+    m.date.length > 0 &&
+    typeof m.weightKg === "number" &&
+    Number.isFinite(m.weightKg) &&
+    typeof m.fatPct === "number" &&
+    Number.isFinite(m.fatPct)
+  );
+}
+
+function isValidWorkout(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const w = value as Record<string, unknown>;
+  return (
+    typeof w.id === "number" &&
+    Number.isFinite(w.id) &&
+    typeof w.title === "string" &&
+    w.title.length > 0 &&
+    Array.isArray(w.exercises)
+  );
+}
 
 function sendJson(response: http.ServerResponse, statusCode: number, body: unknown): void {
   const payload = JSON.stringify(body, null, 2);
@@ -51,12 +87,17 @@ function sendHtml(response: http.ServerResponse): void {
 }
 
 function readBody(request: http.IncomingMessage): Promise<string> {
+  const declaredLength = Number(request.headers["content-length"] ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    return Promise.reject(new Error("Payload too large"));
+  }
   return new Promise((resolve, reject) => {
     let body = "";
     request.on("data", (chunk: Buffer) => {
       body += chunk.toString("utf8");
-      if (body.length > 5 * 1024 * 1024) {
+      if (body.length > MAX_BODY_BYTES) {
         reject(new Error("Payload too large"));
+        request.destroy();
       }
     });
     request.on("end", () => resolve(body));
@@ -66,7 +107,10 @@ function readBody(request: http.IncomingMessage): Promise<string> {
 
 const server = http.createServer((request, response) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
-  const pathname = url.pathname;
+  let pathname = url.pathname;
+  if (pathname !== "/" && pathname.endsWith("/")) {
+    pathname = pathname.replace(/\/+$/, "");
+  }
 
   if (request.method === "OPTIONS") {
     response.writeHead(204, {
@@ -96,7 +140,9 @@ const server = http.createServer((request, response) => {
   }
 
   if (request.method === "GET" && pathname === "/api/metrics") {
-    const sorted = [...data.metrics].sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = [...data.metrics].sort((a, b) =>
+      String(a.date ?? "").localeCompare(String(b.date ?? ""))
+    );
     sendJson(response, 200, sorted);
     return;
   }
@@ -111,14 +157,21 @@ const server = http.createServer((request, response) => {
       try {
         const raw = await readBody(request);
         const payload = JSON.parse(raw) as Partial<DemoData>;
-        if (Array.isArray(payload.metrics)) {
-          data.metrics = payload.metrics;
+        const next: DemoData = {
+          metrics: Array.isArray(payload.metrics) ? payload.metrics : data.metrics,
+          workouts: Array.isArray(payload.workouts) ? payload.workouts : data.workouts,
+        };
+        if (Array.isArray(payload.metrics) && !payload.metrics.every(isValidMetric)) {
+          sendJson(response, 400, { status: "error", message: "Invalid metric payload" });
+          return;
         }
-        if (Array.isArray(payload.workouts)) {
-          data.workouts = payload.workouts;
+        if (Array.isArray(payload.workouts) && !payload.workouts.every(isValidWorkout)) {
+          sendJson(response, 400, { status: "error", message: "Invalid workout payload" });
+          return;
         }
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
-        sendJson(response, 200, { status: "updated", dataPoints: data.metrics.length });
+        data = next;
+        persistData(next);
+        sendJson(response, 200, { status: "updated", dataPoints: next.metrics.length });
       } catch (error) {
         sendJson(response, 400, { status: "error", message: (error as Error).message });
       }

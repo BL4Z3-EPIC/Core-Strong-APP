@@ -48,6 +48,10 @@ class WorkoutRepository(
         )
     }
 
+    suspend fun clearAll() {
+        workoutDao.clearAll()
+    }
+
     private fun WorkoutDto.toEntity() = WorkoutEntity(
         id = id,
         title = title,

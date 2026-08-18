@@ -1,98 +1,128 @@
 package com.pulsepoint.app.ui.vitality.components
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.pulsepoint.app.core.data.WeightUnit
 import com.pulsepoint.app.core.local.entity.HealthSnapshotEntity
 import com.pulsepoint.app.ui.vitality.MetricType
-import com.pulsepoint.app.ui.vitality.valueFor
+import com.pulsepoint.app.ui.vitality.computeDelta
+import com.pulsepoint.app.ui.vitality.isImprovement
+import com.pulsepoint.app.ui.vitality.unitSuffix
+import com.pulsepoint.app.ui.vitality.valueForDisplay
+import com.pulsepoint.app.ui.theme.pulseNegativeColor
+import com.pulsepoint.app.ui.theme.pulsePositiveColor
 import java.util.Locale
 
 @Composable
-fun MetricCard(
+fun MetricTile(
     metric: MetricType,
     snapshots: List<HealthSnapshotEntity>,
     rangeDays: Int,
+    weightUnit: WeightUnit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val latest = snapshots.lastOrNull()
-    val latestValue = latest?.valueFor(metric)
+    val delta = computeDelta(snapshots, metric, weightUnit, rangeDays)
 
     Card(
+        onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(metric.color.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
             ) {
-                Column {
+                androidx.compose.material3.Icon(
+                    imageVector = metric.icon,
+                    contentDescription = null,
+                    tint = metric.color,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = metric.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = metric.label,
-                        style = MaterialTheme.typography.labelLarge,
+                        text = formatValue(latest?.valueForDisplay(metric, weightUnit), metric.decimals),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = unitSuffix(metric, weightUnit),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = formatValue(latestValue, metric.decimals),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = metric.unit,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
-                MetricDeltaBadge(metric, snapshots, rangeDays)
             }
-            MetricChart(
-                metric = metric,
-                snapshots = snapshots,
-                rangeDays = rangeDays,
-                modifier = Modifier.fillMaxWidth().height(120.dp)
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                DeltaBadge(metric, delta, weightUnit)
+                Spacer(Modifier.height(6.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun MetricDeltaBadge(
+private fun DeltaBadge(
     metric: MetricType,
-    snapshots: List<HealthSnapshotEntity>,
-    rangeDays: Int
+    delta: com.pulsepoint.app.ui.vitality.MetricDelta?,
+    weightUnit: WeightUnit
 ) {
-    val cutoff = java.time.LocalDate.now().minusDays(rangeDays.toLong()).toEpochDay()
-    val inRange = snapshots.filter { it.dateEpochDay >= cutoff }
-    val first = inRange.firstOrNull()
-    val latest = snapshots.lastOrNull()
-    if (first == null || latest == null) {
+    if (delta == null) {
+        Text(
+            text = "No data",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         return
     }
-
-    val delta = latest.valueFor(metric) - first.valueFor(metric)
-    if (delta == 0.0) {
+    if (delta.delta == 0.0) {
         Text(
             text = "0",
             style = MaterialTheme.typography.labelMedium,
@@ -101,10 +131,10 @@ private fun MetricDeltaBadge(
         return
     }
 
-    val improved = if (metric.higherIsBetter) delta > 0 else delta < 0
-    val sign = if (delta > 0) "+" else ""
-    val arrow = if (improved) "\u25B2" else "\u25BC"
-    val color = if (improved) Color(0xFF2E7D32) else Color(0xFFC62828)
+    val improved = isImprovement(metric, delta.delta)
+    val sign = if (delta.delta > 0) "+" else ""
+    val arrow = if (delta.delta > 0) "\u25B2" else "\u25BC"
+    val color = if (improved) pulsePositiveColor() else pulseNegativeColor()
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -115,9 +145,10 @@ private fun MetricDeltaBadge(
         )
         Spacer(Modifier.width(2.dp))
         Text(
-            text = "$sign${formatValue(delta, metric.decimals)} ${metric.unit}",
+            text = "$sign${formatValue(delta.delta, metric.decimals)} ${unitSuffix(metric, weightUnit)}",
             style = MaterialTheme.typography.labelMedium,
-            color = color
+            color = color,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }

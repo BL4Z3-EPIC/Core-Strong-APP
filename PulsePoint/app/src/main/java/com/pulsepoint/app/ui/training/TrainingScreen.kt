@@ -30,7 +30,7 @@ fun TrainingScreen(
     onOpenWorkout: (Int) -> Unit,
     viewModel: TrainingViewModel = viewModel()
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle(initialValue = TrainingUiState())
     TrainingContent(
         state = state,
         onOpenWorkout = onOpenWorkout

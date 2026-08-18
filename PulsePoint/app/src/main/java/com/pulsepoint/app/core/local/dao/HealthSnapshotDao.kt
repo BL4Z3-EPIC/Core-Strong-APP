@@ -21,4 +21,7 @@ interface HealthSnapshotDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(snapshots: List<HealthSnapshotEntity>)
+
+    @Query("DELETE FROM health_snapshots")
+    suspend fun clearAll()
 }

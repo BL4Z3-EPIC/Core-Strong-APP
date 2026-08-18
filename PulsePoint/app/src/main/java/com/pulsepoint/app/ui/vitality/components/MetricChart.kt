@@ -13,21 +13,22 @@ import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import com.patrykandpatrick.vico.core.entry.entryOf
+import com.pulsepoint.app.core.data.WeightUnit
 import com.pulsepoint.app.core.local.entity.HealthSnapshotEntity
 import com.pulsepoint.app.core.util.DateFormatting
 import com.pulsepoint.app.ui.vitality.MetricType
-import com.pulsepoint.app.ui.vitality.valueFor
-import java.time.LocalDate
+import com.pulsepoint.app.ui.vitality.valueForDisplay
 
 @Composable
 fun MetricChart(
     metric: MetricType,
     snapshots: List<HealthSnapshotEntity>,
     rangeDays: Int,
+    weightUnit: WeightUnit = WeightUnit.KG,
     modifier: Modifier = Modifier
 ) {
     val filtered = remember(snapshots, rangeDays) {
-        val cutoff = LocalDate.now().minusDays(rangeDays.toLong()).toEpochDay()
+        val cutoff = java.time.LocalDate.now().minusDays(rangeDays.toLong()).toEpochDay()
         snapshots.filter { it.dateEpochDay >= cutoff }
     }
 
@@ -35,10 +36,10 @@ fun MetricChart(
         return
     }
 
-    val model = remember(metric, filtered) {
+    val model = remember(metric, filtered, weightUnit) {
         entryModelOf(
             filtered.map {
-                entryOf(it.dateEpochDay.toFloat(), it.valueFor(metric).toFloat())
+                entryOf(it.dateEpochDay.toFloat(), it.valueForDisplay(metric, weightUnit).toFloat())
             }
         )
     }
